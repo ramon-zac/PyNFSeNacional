@@ -83,11 +83,11 @@ pip install "PyNFSeNacionalGT[danfse]"
 
 > Requer **Python 3.10+**. No PyPI o pacote se chama **`PyNFSeNacionalGT`** (o nome `PyNFSeNacional`
 > esbarra na proteção do PyPI por semelhança com outro projeto); o **import continua `pynfsenacional`**.
-> Pin recomendado: **`PyNFSeNacionalGT>=1.6.0`** — a 1.2.0 corrige o contador de nDPS que travava
+> Pin recomendado: **`PyNFSeNacionalGT>=1.8.0`** — a 1.2.0 corrige o contador de nDPS que travava
 > depois de uma resposta perdida (toda emissão seguinte voltava "já emitida") e traz cancelamento,
 > consulta pela chave e a caixa postal DF-e; a 1.3.1 faz a caixa DF-e distinguir a RECUSA (ex.:
 > consulta por procuração sem a procuração, E2245) de uma caixa vazia; a 1.3.2 faz a conferência do `ja_emitida` ler o tomador
-> como a DPS o escreve (`cnpj`/`cpf`), sem reenviar a própria nota em número novo; a 1.4.0 traz o grupo Atividade/Evento, obrigatório no item 12 (E0390); a 1.5.0 consulta o convênio e as alíquotas do município; a 1.6.0 emite o `pAliq` do ISS retido do ME/EPP; a 1.7.0 separa o cancelamento recusado do ambíguo, põe prazo na caixa DF-e e diz se o certificado é e-CNPJ ou e-CPF. O histórico de cada versão está no [CHANGELOG](CHANGELOG.md).
+> como a DPS o escreve (`cnpj`/`cpf`), sem reenviar a própria nota em número novo; a 1.4.0 traz o grupo Atividade/Evento, obrigatório no item 12 (E0390); a 1.5.0 consulta o convênio e as alíquotas do município; a 1.6.0 emite o `pAliq` do ISS retido do ME/EPP; a 1.7.0 separa o cancelamento recusado do ambíguo, põe prazo na caixa DF-e e diz se o certificado é e-CNPJ ou e-CPF; a 1.8.0 faz o `emitir` ler a série da config e aceitar a competência. O histórico de cada versão está no [CHANGELOG](CHANGELOG.md).
 
 ---
 

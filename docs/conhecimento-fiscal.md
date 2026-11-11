@@ -228,6 +228,14 @@ município + código + data) para descobrir/confirmar o `cTribMun` — confirmar
   novo. A DPS ainda não monta `<NIF>` (tomador do exterior): o tomador só com NIF sai sem
   `<toma>`, e é assim que ele é comparado.
 
+- **Série e competência no `emitir` (1.8.0).** A série padrão sai de `dados_nota.serie` da config
+  (sem ela, `"1"`); `emitir(serie=...)` vence a config. Vale para o contador E para o `numero=`
+  explícito — o `Id` da DPS é o mesmo dos dois lados. A `dCompet` pode ser informada
+  (`competencia=` AAAA-MM-DD ou `date`; sem ela é hoje, em Brasília) e **não pode ser posterior ao dia
+  da emissão** (data de Brasília): é recusada com `ConfigError` antes de qualquer chamada à rede.
+  Formato fora de AAAA-MM-DD (inclusive `20261004`, que o `date.fromisoformat` do Python 3.11+
+  aceita) é recusado do mesmo jeito.
+
 ### ★ Quando o prestador JÁ emitia por outro sistema — use uma série dedicada
 
 O `Id` da DPS é `município + CNPJ + **série** + nDPS`. Se o CNPJ já emitiu pelo portal do governo (ou

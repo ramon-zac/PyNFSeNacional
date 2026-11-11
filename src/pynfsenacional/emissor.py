@@ -10,16 +10,18 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from lxml import etree
 
-from . import assinatura, dfe, documentos, dps, eventos, sefin
+from . import assinatura, dfe, documentos, dps, eventos, relogio, sefin
 from . import chave as _chave
 from .certificado import Certificado
 from .config import (
+    _RE_TSDATA,
     LEIAUTE_NT009,
     LEIAUTE_PRODUCAO,
     ClienteConfig,
@@ -142,6 +144,31 @@ def mesma_nota(nfse_xml: str | None, valor: Any, tomador: dict[str, Any] | None)
     return doc_xml == _doc(tomador)
 
 
+def _competencia(competencia: str | date | None) -> str | None:
+    """`competencia` como `AAAA-MM-DD` (None = hoje, a DPS decide). Formato inválido ou data
+    posterior a hoje em Brasília → `ConfigError` (§5: a `dCompet` não pode ser futura)."""
+    if competencia is None:
+        return None
+    if isinstance(competencia, datetime):
+        dia = competencia.date()
+    elif isinstance(competencia, date):
+        dia = competencia
+    else:
+        bruto = competencia.strip() if isinstance(competencia, str) else ""
+        try:
+            if not _RE_TSDATA.fullmatch(bruto):
+                raise ValueError(bruto)
+            dia = date.fromisoformat(bruto)
+        except ValueError:
+            raise ConfigError(
+                f"competência deve ser AAAA-MM-DD (ou date); recebido {competencia!r}") from None
+    if dia > relogio.agora().date():
+        raise ConfigError(
+            f"competência {dia.isoformat()} é posterior à data da emissão — a dCompet não pode "
+            f"ser futura")
+    return dia.isoformat()
+
+
 class Emissor:
     """Ponto de entrada. `Emissor("config/cliente.json").emitir(...)`."""
 
@@ -153,7 +180,8 @@ class Emissor:
 
     def emitir(self, *, valor: Decimal | float | int | str, descricao: str,
                tomador: dict[str, Any] | None = None,
-               numero: str | None = None, serie: str = "1") -> Nota:
+               numero: str | None = None, serie: str | None = None,
+               competencia: str | date | None = None) -> Nota:
         """Emite uma NFS-e. Pipeline (cada etapa é um módulo):
             1. montar a DPS (dps.montar_dps)        — lógica fiscal
             2. assinar (assinatura.assinar_dps)     — XMLDSIG
@@ -161,6 +189,9 @@ class Emissor:
             4. (opcional) nota.danfse(path)         — PDF local
         `valor`: Decimal (recomendado), str ("1.262,90" ou "1262.90"), int ou float.
         `numero` (nDPS): se None, usa o contador do ambiente.
+        `serie`: se None, usa `dados_nota.serie` da config (padrão "1"); vale também com `numero=`.
+        `competencia` (`dCompet`): AAAA-MM-DD ou `date`; se None, hoje em Brasília. Não pode ser
+        posterior à data da emissão (`ConfigError`, antes da rede).
 
         Antes de montar a DPS, valida config + tomador (E-codes determinísticos) e
         levanta `ConfigError` — não adianta assinar/enviar uma DPS que o SEFIN vai rejeitar.
@@ -178,6 +209,10 @@ class Emissor:
             problemas.append(str(e))
         if problemas:
             raise ConfigError("config inválida para emissão:\n  - " + "\n  - ".join(problemas))
+
+        d_comp = _competencia(competencia)      # ConfigError antes de tocar contador ou rede
+        if serie is None:
+            serie = str(self.cfg.dados_nota.get("serie", "1"))
 
         do_contador = numero is None
         numero = numero or self._proximo_numero()
@@ -207,7 +242,8 @@ class Emissor:
                               f"notas já emitidas — ajuste {self._contador_path()}")
 
         xml = dps.montar_dps(self.cfg, numero=numero, valor=valor, descricao=descricao,
-                             tomador=tomador, ambiente=self.ambiente, serie=serie)
+                             tomador=tomador, ambiente=self.ambiente, serie=serie,
+                             d_comp=d_comp)
         xml_assinado = assinatura.assinar_dps(
             xml, pkcs12_data=self._pkcs12(), senha=self.cfg.certificado.senha,
         )

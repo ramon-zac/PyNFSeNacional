@@ -465,3 +465,87 @@ def test_assinatura_e_mtls_recebem_os_bytes_do_certificado(emissor, monkeypatch)
     _emitir(emissor, monkeypatch, fake)
     assert vistos["assinatura"]["pkcs12_data"] == esperado
     assert "cert_pfx_path" not in vistos["assinatura"]
+
+
+# --- série do config e competência informada (1.8.0) ---------------------------------------
+
+def _xml_enviado(fake):
+    enviado = {}
+    orig = fake.emitir
+
+    def captura(xml):
+        enviado["xml"] = xml
+        return orig(xml)
+    fake.emitir = captura
+    return enviado
+
+
+def test_serie_vem_do_config_quando_nao_passada(config_dict, pfx_teste, tmp_path, monkeypatch):
+    caminho, senha = pfx_teste
+    config_dict["certificado"] = {"path": str(caminho), "senha": senha}
+    config_dict["dados_nota"] = {"serie": "500", "numero": "1"}
+    e = Emissor(ClienteConfig.from_dict(config_dict), out_dir=tmp_path)
+    nota = _emitir(e, monkeypatch, FakeSefin(resp=_ok()))
+    assert nota.id_dps[25:30] == "00500"
+
+
+def test_serie_padrao_continua_1(emissor, monkeypatch):
+    emissor.cfg.dados_nota.pop("serie", None)
+    assert _emitir(emissor, monkeypatch, FakeSefin(resp=_ok())).id_dps[25:30] == "00001"
+
+
+def test_serie_explicita_vence_o_config(emissor, monkeypatch):
+    emissor.cfg.dados_nota["serie"] = "500"
+    assert _emitir(emissor, monkeypatch, FakeSefin(resp=_ok()), serie="7").id_dps[25:30] == "00007"
+
+
+def test_serie_do_config_vale_tambem_com_numero_explicito(emissor, monkeypatch):
+    emissor.cfg.dados_nota["serie"] = "500"
+    nota = _emitir(emissor, monkeypatch, FakeSefin(resp=_ok()), numero="9")
+    assert nota.id_dps[25:30] == "00500" and nota.id_dps.endswith("9".zfill(15))
+
+
+def test_competencia_informada_vai_no_dcompet(emissor, monkeypatch):
+    fake = FakeSefin(resp=_ok())
+    enviado = _xml_enviado(fake)
+    _emitir(emissor, monkeypatch, fake, competencia="2026-10-01")
+    assert "<dCompet>2026-10-01</dCompet>" in enviado["xml"]
+
+
+def test_competencia_aceita_date(emissor, monkeypatch):
+    from datetime import date
+    fake = FakeSefin(resp=_ok())
+    enviado = _xml_enviado(fake)
+    _emitir(emissor, monkeypatch, fake, competencia=date(2026, 10, 1))
+    assert "<dCompet>2026-10-01</dCompet>" in enviado["xml"]
+
+
+def test_competencia_omitida_e_hoje(emissor, monkeypatch):
+    from pynfsenacional import relogio
+    fake = FakeSefin(resp=_ok())
+    enviado = _xml_enviado(fake)
+    _emitir(emissor, monkeypatch, fake)
+    assert f"<dCompet>{relogio.d_comp()}</dCompet>" in enviado["xml"]
+
+
+def test_competencia_de_hoje_passa(emissor, monkeypatch):
+    from pynfsenacional import relogio
+    fake = FakeSefin(resp=_ok())
+    assert _emitir(emissor, monkeypatch, fake, competencia=relogio.d_comp()).emitida
+
+
+def test_competencia_futura_para_antes_da_rede(emissor, monkeypatch):
+    fake = FakeSefin(resp=_ok())
+    with pytest.raises(ConfigError, match="competência"):
+        _emitir(emissor, monkeypatch, fake, competencia="2099-01-01")
+    assert fake.emitiu is None and fake.verificados == []
+    assert _contador(emissor) is None
+
+
+@pytest.mark.parametrize("ruim", ["20261004", "2026-W45-3", "2026-10", "01/10/2026", "2026-13-01",
+                                  "1999-01-01", "", "  ", 20261004])
+def test_competencia_formato_invalido_para_antes_da_rede(emissor, monkeypatch, ruim):
+    fake = FakeSefin(resp=_ok())
+    with pytest.raises(ConfigError, match="competência"):
+        _emitir(emissor, monkeypatch, fake, competencia=ruim)
+    assert fake.emitiu is None and fake.verificados == []

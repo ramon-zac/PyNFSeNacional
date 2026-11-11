@@ -108,6 +108,9 @@ ponta a ponta: **validar → montar DPS → assinar → transporte mTLS → Nota
   e `Emissor.sincronizar_dfe` (`dfe.py`, caixa postal do ADN por NSU). Validados ao vivo em
   homologação. O contador de nDPS deixou de travar no `ja_emitida` (compara valor + tomador da
   nota achada) e o valor passou a `Decimal`. Regra em `docs/conhecimento-fiscal.md` §5, §16–§18.
+- **1.8.0 (11/11/2026) — série e competência no `emitir`:** `serie=None` lê `dados_nota.serie` (padrão
+  "1"); `competencia=` (AAAA-MM-DD ou `date`) vira a `dCompet`, recusada se futura (Brasília) ou mal
+  formada, antes da rede. Sem os argumentos nada muda. Regra em `docs/conhecimento-fiscal.md` §5.
 - **1.7.0 (06/11/2026) — robustez (revisão adversarial):** o pedido de evento tem `desfecho`
   (`registrado`/`recusado`/`nao_enviado`/`ambiguo`) e não levanta por rede; E0840 no direto = já
   cancelada; teto de relógio (`prazo_s`) no cancelamento e na caixa DF-e (que grava por página,
@@ -155,7 +158,7 @@ leiaute padrão da produção quando ela virar para o pacote da NT 009; (5) even
 
 Tooling: `pip install -e ".[dev]"` (deps instalam no 3.10–3.14), lock com hashes
 (`requirements-dev.txt`), CI (`.github/workflows/ci.yml`), release por tag (`release.yml`).
-Testes: `pytest` (463 passed, +2 skip locais), `ruff check .`, `mypy --strict` — tudo verde.
+Testes: `pytest` (498 passed, 7 skipped), `ruff check .`, `mypy --strict` — tudo verde.
 
 ## Regras
 

@@ -5,6 +5,14 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+## [1.8.0] - 2026-11-11
+
+### Adicionado
+- `Emissor.emitir(serie=None)` lê a série de `dados_nota.serie` da config (padrão `"1"`, como
+  antes); a série passada vence a config, e vale também com `numero=` explícito.
+- `Emissor.emitir(competencia=...)` (AAAA-MM-DD ou `date`) informa a `dCompet`; sem ela é hoje, em
+  Brasília, como antes. Formato inválido ou data posterior à emissão é `ConfigError`, antes da rede.
+
 ## [1.7.0] - 2026-11-06
 
 Revisão de robustez: o que é ambíguo ou demorado deixa de parecer falha (ou sucesso), e o
